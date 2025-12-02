@@ -1,384 +1,286 @@
-import Link from "next/link"
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import {
-  TrendingUp,
-  Target,
-  Shield,
-  Smartphone,
-  CheckCircle2,
-  ArrowRight,
-  BarChart3,
-  Wallet,
-  Users,
-} from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { getFinancialData, deleteTransaction, exportData } from "@/lib/storage"
+import { QuickAddTransaction } from "@/components/quick-add-transaction"
+import { TrendingUp, TrendingDown, Search, Download, Trash2, Filter } from "lucide-react"
+import type { Transaction } from "@/lib/finance-utils"
+import { useToast } from "@/hooks/use-toast"
 
-export default function LandingPage() {
+export default function TransacoesPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterType, setFilterType] = useState<"all" | "income" | "expense">("all")
+  const [filterCategory, setFilterCategory] = useState("all")
+  const { toast } = useToast()
+
+  useEffect(() => {
+    loadTransactions()
+  }, [])
+
+  useEffect(() => {
+    filterTransactions()
+  }, [transactions, searchTerm, filterType, filterCategory])
+
+  const loadTransactions = () => {
+    const data = getFinancialData()
+    setTransactions(data.transactions)
+  }
+
+  const filterTransactions = () => {
+    let filtered = [...transactions]
+
+    if (filterType !== "all") {
+      filtered = filtered.filter((t) => t.type === filterType)
+    }
+
+    if (filterCategory !== "all") {
+      filtered = filtered.filter((t) => t.category === filterCategory)
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (t) =>
+          t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.category.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+
+    setFilteredTransactions(filtered)
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+      deleteTransaction(id)
+      loadTransactions()
+      toast({
+        title: "Transação excluída",
+        description: "A transação foi removida com sucesso",
+      })
+    }
+  }
+
+  const handleExport = () => {
+    const data = exportData()
+    const blob = new Blob([data], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `finvision-export-${new Date().toISOString().split("T")[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    toast({
+      title: "Dados exportados",
+      description: "Seus dados foram exportados com sucesso",
+    })
+  }
+
+  const categories = Array.from(new Set(transactions.map((t) => t.category)))
+
+  const totalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
+
+  const totalExpense = filteredTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
+
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">FinVision</span>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Transações</h1>
+            <p className="text-muted-foreground">Gerencie todo seu histórico financeiro</p>
           </div>
-
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Recursos
-            </a>
-            <a href="#plans" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Planos
-            </a>
-            <a href="#about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Sobre
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Entrar
-              </Button>
-            </Link>
-            <Link href="/cadastro">
-              <Button size="sm" className="gap-2">
-                Começar Grátis
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm mb-6">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                Transforme sua vida financeira
-              </div>
-
-              <h1 className="text-5xl md:text-6xl font-bold mb-6 text-balance">Visão financeira do seu futuro</h1>
-
-              <p className="text-xl text-muted-foreground mb-8 text-pretty">
-                Gerencie suas finanças com inteligência. Acompanhe gastos, estabeleça metas e construa um futuro
-                financeiro sólido com o método 50/30/20.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <Link href="/cadastro">
-                  <Button size="lg" className="w-full sm:w-auto gap-2">
-                    Testar Grátis
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-                <Button variant="outline" size="lg" className="w-full sm:w-auto bg-transparent">
-                  Ver Demonstração
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  Sem cartão de crédito
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  100% gratuito
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent blur-3xl" />
-              <Card className="relative p-6 backdrop-blur-sm bg-card/50">
-                <img
-                  src="/modern-financial-dashboard-with-charts.jpg"
-                  alt="Dashboard Preview"
-                  className="w-full h-auto rounded-lg"
-                />
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Tudo que você precisa em um só lugar</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Ferramentas poderosas para controlar suas finanças de forma inteligente
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: BarChart3,
-                title: "Dashboard Inteligente",
-                description: "Visualize suas finanças em tempo real com gráficos e insights personalizados",
-              },
-              {
-                icon: Target,
-                title: "Metas Financeiras",
-                description: "Defina objetivos e acompanhe seu progresso com calculadoras inteligentes",
-              },
-              {
-                icon: Shield,
-                title: "Método 50/30/20",
-                description: "Distribua sua renda de forma inteligente: necessidades, desejos e investimentos",
-              },
-              {
-                icon: TrendingUp,
-                title: "Investimentos",
-                description: "Aprenda a investir com simuladores de juros compostos e dicas personalizadas",
-              },
-              {
-                icon: Smartphone,
-                title: "PWA - Use Offline",
-                description: "Instale no seu celular e acesse mesmo sem internet",
-              },
-              {
-                icon: Wallet,
-                title: "Controle Total",
-                description: "Registre gastos, acompanhe histórico e exporte relatórios completos",
-              },
-            ].map((feature, i) => (
-              <Card key={i} className="p-6 hover:shadow-lg transition-shadow">
-                <feature.icon className="w-10 h-10 text-primary mb-4" />
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Plans Section */}
-      <section id="plans" className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Escolha o plano ideal para você</h2>
-            <p className="text-lg text-muted-foreground">Comece gratuitamente e evolua conforme suas necessidades</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Pessoa Física */}
-            <Card className="p-8 relative overflow-hidden">
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold mb-2">Pessoa Física</h3>
-                <p className="text-muted-foreground">Para uso pessoal</p>
-              </div>
-
-              <div className="mb-6">
-                <span className="text-4xl font-bold">Grátis</span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Dashboard completo",
-                  "Método 50/30/20",
-                  "Registro de gastos ilimitado",
-                  "Gráficos e relatórios",
-                  "Metas financeiras",
-                  "Exportação de dados",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link href="/cadastro?plan=pf">
-                <Button className="w-full">Começar Agora</Button>
-              </Link>
-            </Card>
-
-            {/* MEI */}
-            <Card className="p-8 relative overflow-hidden border-primary shadow-lg scale-105">
-              <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
-                POPULAR
-              </div>
-
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold mb-2">MEI / Autônomo</h3>
-                <p className="text-muted-foreground">Para empreendedores</p>
-              </div>
-
-              <div className="mb-6">
-                <span className="text-4xl font-bold">R$ 29</span>
-                <span className="text-muted-foreground">/mês</span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Tudo do plano Pessoa Física",
-                  "Separação PF e PJ",
-                  "Controle de receitas",
-                  "Gestão de impostos",
-                  "Fluxo de caixa",
-                  "Assistente IA avançado",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link href="/cadastro?plan=mei">
-                <Button className="w-full">Começar Agora</Button>
-              </Link>
-            </Card>
-
-            {/* Corporativo */}
-            <Card className="p-8 relative overflow-hidden">
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-6 h-6 text-primary" />
-                  <h3 className="text-2xl font-bold">Corporativo</h3>
-                </div>
-                <p className="text-muted-foreground">Para empresas</p>
-              </div>
-
-              <div className="mb-6">
-                <span className="text-4xl font-bold">Sob consulta</span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Tudo dos planos anteriores",
-                  "Painel RH completo",
-                  "Gestão de funcionários",
-                  "Controle de entrada/saída",
-                  "Saúde financeira da equipe",
-                  "Relatórios corporativos",
-                  "Suporte prioritário",
-                  "LGPD compliance",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link href="/cadastro-empresa">
-                <Button className="w-full">Cadastrar Empresa</Button>
-              </Link>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-primary text-primary-foreground">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Pronto para transformar suas finanças?</h2>
-          <p className="text-lg mb-8 opacity-90">
-            Junte-se a milhares de pessoas que já estão no controle do seu futuro financeiro
-          </p>
-          <Link href="/cadastro">
-            <Button size="lg" variant="secondary" className="gap-2">
-              Começar Gratuitamente
-              <ArrowRight className="w-4 h-4" />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport} className="gap-2 bg-transparent">
+              <Download className="w-4 h-4" />
+              Exportar
             </Button>
-          </Link>
+            <QuickAddTransaction onAdd={loadTransactions} />
+          </div>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold">FinVision</span>
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Transações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{filteredTransactions.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Neste período</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receitas</CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                R$ {totalIncome.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </div>
-              <p className="text-sm text-muted-foreground">Transformando vidas através da educação financeira</p>
-            </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filteredTransactions.filter((t) => t.type === "income").length} transações
+              </p>
+            </CardContent>
+          </Card>
 
-            <div>
-              <h4 className="font-semibold mb-3">Produto</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <a href="#features" className="hover:text-foreground">
-                    Recursos
-                  </a>
-                </li>
-                <li>
-                  <a href="#plans" className="hover:text-foreground">
-                    Planos
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    Tutoriais
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-3">Empresa</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <a href="#about" className="hover:text-foreground">
-                    Sobre
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    Contato
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    Privacidade
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    Termos
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-foreground">
-                    LGPD
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t text-center text-sm text-muted-foreground">
-            © 2025 FinVision. Todos os direitos reservados.
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+              <TrendingDown className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">
+                R$ {totalExpense.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filteredTransactions.filter((t) => t.type === "expense").length} transações
+              </p>
+            </CardContent>
+          </Card>
         </div>
-      </footer>
-    </div>
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Buscar</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar transações..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tipo</label>
+                <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="income">Receitas</SelectItem>
+                    <SelectItem value="expense">Despesas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Categoria</label>
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Transactions List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Histórico Completo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg mb-2">Nenhuma transação encontrada</p>
+                <p className="text-sm">
+                  {transactions.length === 0
+                    ? "Adicione sua primeira transação para começar"
+                    : "Tente ajustar os filtros"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTransactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div
+                        className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                          transaction.type === "income" ? "bg-primary/10" : "bg-destructive/10"
+                        }`}
+                      >
+                        {transaction.type === "income" ? (
+                          <TrendingUp className="w-6 h-6 text-primary" />
+                        ) : (
+                          <TrendingDown className="w-6 h-6 text-destructive" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{transaction.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+                          <span className="px-2 py-0.5 bg-muted rounded text-xs">{transaction.category}</span>
+                          {transaction.paymentMethod && (
+                            <span className="px-2 py-0.5 bg-muted rounded text-xs">{transaction.paymentMethod}</span>
+                          )}
+                          <span>{new Date(transaction.date).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span
+                            className={`font-bold text-lg ${
+                              transaction.type === "income" ? "text-primary" : "text-destructive"
+                            }`}
+                          >
+                            {transaction.type === "income" ? "+" : "-"}R${" "}
+                            {transaction.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(transaction.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
   )
 }
